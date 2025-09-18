@@ -1,0 +1,128 @@
+1. Prevent Opportunity Amount from being reduced compared to old value
+(your code had typos in opportunity spelling)
+
+trigger OpportunityTrigger on Opportunity (before update) {
+    for (Opportunity opp : Trigger.new) {
+        Opportunity oldOpp = Trigger.oldMap.get(opp.Id);
+        if (opp.Amount < oldOpp.Amount) {
+            opp.addError('Amount cannot be decreased.');
+        }
+    }
+}
+
+
+2. Prevent updating Account Phone if Industry = Banking
+(use && instead of & for condition)
+
+trigger AccountTrigger on Account (before update) {
+    for (Account acc : Trigger.new) {
+        Account oldAcc = Trigger.oldMap.get(acc.Id);
+        if (acc.Industry == 'Banking' && acc.Phone != oldAcc.Phone) {
+            acc.addError('Phone cannot be changed for Banking Accounts.');
+        }
+    }
+}
+
+
+3. If Account Industry = Technology, auto-update Rating = Hot
+
+trigger AccountTrigger on Account (before update) {
+    for (Account acc : Trigger.new) {
+        if (acc.Industry == 'Technology') {
+            acc.Rating = 'Hot';
+        }
+    }
+}
+
+
+4. Prevent Status change on Case if Priority = High
+
+trigger CaseTrigger on Case (before update) {
+    for (Case c : Trigger.new) {
+        Case oldCase = Trigger.oldMap.get(c.Id);
+        if (c.Priority == 'High' && c.Status != oldCase.Status) {
+            c.addError('Case status cannot be changed when Priority = High.');
+        }
+    }
+}
+
+
+5. Auto-format Email field (convert to lowercase)
+(your code had == instead of =)
+
+trigger AccountTrigger on Account (before update) {
+    for (Account acc : Trigger.new) {
+        if (acc.Email != null) {
+            acc.Email = acc.Email.toLowerCase();
+        }
+    }
+}
+
+
+6. If CloseDate < Today, set Stage = Closed Lost
+
+trigger OpportunityTrigger on Opportunity (before update) {
+    for (Opportunity opp : Trigger.new) {
+        if (opp.CloseDate < Date.today()) {
+            opp.StageName = 'Closed Lost';
+        }
+    }
+}
+
+
+7. Prevent update of Contact Email if domain is blocked
+(e.g., block @spam.com domain)
+
+trigger ContactTrigger on Contact (before update) {
+    for (Contact con : Trigger.new) {
+        Contact oldCon = Trigger.oldMap.get(con.Id);
+        if (con.Email != oldCon.Email && con.Email != null && con.Email.endsWith('@spam.com')) {
+            con.addError('Email domain not allowed.');
+        }
+    }
+}
+
+
+8. Prevent changing Lead Owner if Lead Status = Converted
+
+trigger LeadTrigger on Lead (before update) {
+    for (Lead l : Trigger.new) {
+        Lead oldLead = Trigger.oldMap.get(l.Id);
+        if (l.Status == 'Converted' && l.OwnerId != oldLead.OwnerId) {
+            l.addError('Cannot change Owner for Converted Leads.');
+        }
+    }
+}
+
+
+9. If Account Rating changes to “Hot”, update Description
+
+trigger AccountTrigger on Account (before update) {
+    for (Account acc : Trigger.new) {
+        Account oldAcc = Trigger.oldMap.get(acc.Id);
+        if (acc.Rating == 'Hot' && acc.Rating != oldAcc.Rating) {
+            acc.Description = 'High Priority Client';
+        }
+    }
+}
+
+
+10. Prevent updating Opportunity Stage backward (Closed Won → lower stage)
+(A common interview favorite!)
+
+trigger OpportunityTrigger on Opportunity (before update) {
+    Map<String, Integer> stageOrder = new Map<String, Integer>{
+        'Prospecting' => 1,
+        'Negotiation' => 2,
+        'Closed Won'  => 3
+    };
+
+    for (Opportunity opp : Trigger.new) {
+        Opportunity oldOpp = Trigger.oldMap.get(opp.Id);
+        if (stageOrder.containsKey(opp.StageName) && stageOrder.containsKey(oldOpp.StageName)) {
+            if (stageOrder.get(opp.StageName) < stageOrder.get(oldOpp.StageName)) {
+                opp.addError('Cannot move Stage backward.');
+            }
+        }
+    }
+}
