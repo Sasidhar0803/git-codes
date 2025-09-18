@@ -1,0 +1,126 @@
+1. Prevent Duplicate Account Name (case-insensitive)
+trigger AccountTrigger on Account (before insert) {
+    Set<String> accNames = new Set<String>();
+    for (Account acc : Trigger.new) {
+        if (acc.Name != null) {
+            accNames.add(acc.Name.toLowerCase());
+        }
+    }
+
+    Set<String> existingNames = new Set<String>();
+    for (Account acc : [
+        SELECT Name FROM Account WHERE Name IN :accNames
+    ]) {
+        existingNames.add(acc.Name.toLowerCase());
+    }
+
+    for (Account acc : Trigger.new) {
+        if (acc.Name != null && existingNames.contains(acc.Name.toLowerCase())) {
+            acc.addError('Duplicate Account Name is not allowed.');
+        }
+    }
+}
+
+2. Prevent inserting Contact if Email domain = gmail.com
+trigger ContactTrigger on Contact (before insert) {
+    for (Contact con : Trigger.new) {
+        if (con.Email != null && con.Email.toLowerCase().endsWith('@gmail.com')) {
+            con.addError('Contacts with Gmail accounts are not allowed.');
+        }
+    }
+}
+
+3. Set default Industry = Technology if blank
+trigger AccountTrigger on Account (before insert) {
+    for (Account acc : Trigger.new) {
+        if (String.isBlank(acc.Industry)) {
+            acc.Industry = 'Technology';
+        }
+    }
+}
+
+4. Auto-format Phone field (remove spaces, dashes)
+trigger AccountTrigger on Account (before insert) {
+    for (Account acc : Trigger.new) {
+        if (acc.Phone != null) {
+            acc.Phone = acc.Phone.replaceAll('[^0-9]', ''); 
+            // Keeps only numbers
+        }
+    }
+}
+
+5. Prevent inserting Opportunity if CloseDate < Today
+trigger OpportunityTrigger on Opportunity (before insert) {
+    for (Opportunity opp : Trigger.new) {
+        if (opp.CloseDate != null && opp.CloseDate < Date.today()) {
+            opp.addError('Opportunity cannot be created with a past Close Date.');
+        }
+    }
+}
+
+6. Block Case creation if Priority = High but no Description
+trigger CaseTrigger on Case (before insert) {
+    for (Case c : Trigger.new) {
+        if (c.Priority == 'High' && String.isBlank(c.Description)) {
+            c.addError('High priority Cases must have a description.');
+        }
+    }
+}
+
+7. Auto-assign Status = New for Lead if not provided
+trigger LeadTrigger on Lead (before insert) {
+    for (Lead l : Trigger.new) {
+        if (String.isBlank(l.Status)) {
+            l.Status = 'New';
+        }
+    }
+}
+
+8. Prevent creating Contact if Account has more than 100 Contacts
+trigger ContactTrigger on Contact (before insert) {
+    Set<Id> accIds = new Set<Id>();
+    for (Contact con : Trigger.new) {
+        if (con.AccountId != null) {
+            accIds.add(con.AccountId);
+        }
+    }
+
+    Map<Id, Integer> accMap = new Map<Id, Integer>();
+    for (AggregateResult ar : [
+        SELECT AccountId accId, COUNT(Id) cnt
+        FROM Contact 
+        WHERE AccountId IN :accIds
+        GROUP BY AccountId
+        HAVING COUNT(Id) >= 100
+    ]) {
+        accMap.put((Id) ar.get('accId'), (Integer) ar.get('cnt'));
+    }
+
+    for (Contact con : Trigger.new) {
+        if (con.AccountId != null && accMap.containsKey(con.AccountId)) {
+            con.addError('This Account already has 100 Contacts. New Contact cannot be created.');
+        }
+    }
+}
+
+9. Auto-populate custom field Unique_Key__c = Name + CreatedDate
+
+⚠️ Note: In before insert, CreatedDate is not available (it gets generated only after insert).
+Instead, use System.now() or Datetime.now().
+
+trigger AccountTrigger on Account (before insert) {
+    for (Account acc : Trigger.new) {
+        if (acc.Name != null) {
+            acc.Unique_Key__c = acc.Name + '_' + System.now().getTime();
+        }
+    }
+}
+
+10. Prevent creating Account if AnnualRevenue < 1000
+trigger AccountTrigger on Account (before insert) {
+    for (Account acc : Trigger.new) {
+        if (acc.AnnualRevenue != null && acc.AnnualRevenue < 1000) {
+            acc.addError('Account cannot be created with Annual Revenue less than 1000.');
+        }
+    }
+}
