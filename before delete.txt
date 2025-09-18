@@ -1,0 +1,19 @@
+Prevent Account deletion if it has more than 2 Contacts.
+
+Prevent Opportunity deletion if Stage = Closed Won.
+
+Prevent deleting Case if Status != Closed.
+
+Prevent deleting Contact if Role = Decision Maker.
+
+Block deleting Campaign if it has Campaign Members.
+
+Prevent deletion of Account if Industry = Banking.
+
+Prevent deleting Opportunity if related Quote exists.
+
+Prevent Contact deletion if related Case exists.
+
+Prevent deletion of Lead if converted.
+
+Prevent deleting Account if AnnualRevenue > 1,000,000.
