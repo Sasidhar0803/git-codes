@@ -1,0 +1,19 @@
+If Opportunity Stage = Closed Won, auto-create a Case.
+
+If Case Status = Escalated, auto-create Task for Case Owner.
+
+When Contact is updated, recalculate and update Account’s Number_of_Contacts__c.
+
+If Account Rating changes to Hot, insert record into Priority_Accounts__c.
+
+Auto-log history in Change_Log__c whenever Opportunity Amount changes.
+
+If Opportunity Probability = 100%, auto-update Account Status = Active.
+
+After Case closure, auto-send Survey record creation.
+
+Update parent Opportunity Last_Activity_Date__c when related Task is updated.
+
+Auto-update Account Last_Contacted_Date__c when Contact is modified.
+
+If Account Owner changes, reassign all related Contacts to new Owner.
