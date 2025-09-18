@@ -1,0 +1,204 @@
+1. When Contact is created → update parent Account’s Number_of_Contacts__c
+trigger ContactTrigger on Contact (after insert) {
+    Set<Id> accIds = new Set<Id>();
+    for (Contact con : Trigger.new) {
+        if (con.AccountId != null) {
+            accIds.add(con.AccountId);
+        }
+    }
+
+    Map<Id, Integer> conMap = new Map<Id, Integer>();
+    for (AggregateResult ar : [
+        SELECT AccountId accId, COUNT(Id) cnt
+        FROM Contact
+        WHERE AccountId IN :accIds
+        GROUP BY AccountId
+    ]) {
+        conMap.put((Id) ar.get('accId'), (Integer) ar.get('cnt'));
+    }
+
+    List<Account> accToUpdate = new List<Account>();
+    for (Id accId : accIds) {
+        if (conMap.containsKey(accId)) {
+            accToUpdate.add(new Account(
+                Id = accId,
+                Number_of_Contacts__c = conMap.get(accId)
+            ));
+        }
+    }
+
+    if (!accToUpdate.isEmpty()) {
+        update accToUpdate;
+    }
+}
+
+2. Auto-create Opportunity when Lead Status = Qualified
+trigger LeadTrigger on Lead (after insert) {
+    List<Opportunity> oppList = new List<Opportunity>();
+
+    for (Lead l : Trigger.new) {
+        if (l.Status == 'Qualified') {
+            oppList.add(new Opportunity(
+                Name = l.FirstName + ' ' + l.LastName + ' Opportunity',
+                StageName = 'Prospecting',
+                CloseDate = Date.today().addMonths(1),
+                Lead__c = l.Id // assuming you have a custom lookup to Lead
+            ));
+        }
+    }
+
+    if (!oppList.isEmpty()) {
+        insert oppList;
+    }
+}
+
+
+⚠️ Note: Standard Opportunity doesn’t link directly to Lead. You’ll need a custom field (Lead__c) if you want the relation.
+
+3. Auto-create Task for Owner when Case is created
+trigger CaseTrigger on Case (after insert) {
+    List<Task> tasks = new List<Task>();
+
+    for (Case c : Trigger.new) {
+        tasks.add(new Task(
+            OwnerId = c.OwnerId,
+            WhatId = c.Id,
+            Status = 'Not Started',
+            Subject = 'Follow up on Case ' + c.CaseNumber
+        ));
+    }
+
+    if (!tasks.isEmpty()) {
+        insert tasks;
+    }
+}
+
+4. Send Email Alert when Opportunity Amount > 1M
+
+➡️ Normally done with Workflow/Flow, but in Apex you’d call an Email.
+
+trigger OpportunityTrigger on Opportunity (after insert) {
+    List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
+
+    for (Opportunity opp : Trigger.new) {
+        if (opp.Amount != null && opp.Amount > 1000000) {
+            Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+            mail.setToAddresses(new String[] {'manager@company.com'});
+            mail.setSubject('High Value Opportunity Created');
+            mail.setPlainTextBody('Opportunity ' + opp.Name + ' created with Amount: ' + opp.Amount);
+            emails.add(mail);
+        }
+    }
+
+    if (!emails.isEmpty()) {
+        Messaging.sendEmail(emails);
+    }
+}
+
+5. Insert record into Audit_Log__c after Account creation
+trigger AccountTrigger on Account (after insert) {
+    List<Audit_Log__c> logs = new List<Audit_Log__c>();
+
+    for (Account acc : Trigger.new) {
+        logs.add(new Audit_Log__c(
+            Name = 'Account Created',
+            Related_Record_Id__c = acc.Id,
+            Description__c = 'Account ' + acc.Name + ' was created.'
+        ));
+    }
+
+    if (!logs.isEmpty()) {
+        insert logs;
+    }
+}
+
+6. Create Child Contact automatically when Account Type = Customer
+trigger AccountTrigger on Account (after insert) {
+    List<Contact> conList = new List<Contact>();
+
+    for (Account acc : Trigger.new) {
+        if (acc.Type == 'Customer') {
+            conList.add(new Contact(
+                LastName = acc.Name,
+                AccountId = acc.Id,
+                Email = 'default@company.com'
+            ));
+        }
+    }
+
+    if (!conList.isEmpty()) {
+        insert conList;
+    }
+}
+
+7. Auto-create Case when Opportunity Stage = Prospecting
+trigger OpportunityTrigger on Opportunity (after insert) {
+    List<Case> caseList = new List<Case>();
+
+    for (Opportunity opp : Trigger.new) {
+        if (opp.StageName == 'Prospecting') {
+            caseList.add(new Case(
+                Subject = 'Prospecting Opportunity Case',
+                AccountId = opp.AccountId,
+                Origin = 'System',
+                Status = 'New'
+            ));
+        }
+    }
+
+    if (!caseList.isEmpty()) {
+        insert caseList;
+    }
+}
+
+8. After Campaign insert → auto-create Campaign Member for owner
+trigger CampaignTrigger on Campaign (after insert) {
+    List<CampaignMember> members = new List<CampaignMember>();
+
+    for (Campaign camp : Trigger.new) {
+        members.add(new CampaignMember(
+            CampaignId = camp.Id,
+            ContactId = camp.OwnerId // ⚠️ Only works if Owner is also a Contact
+        ));
+    }
+
+    if (!members.isEmpty()) {
+        insert members;
+    }
+}
+
+
+⚠️ In reality, you’d need logic to ensure the Owner is a Contact/Lead.
+
+9. Create default Quote after Opportunity creation
+trigger OpportunityTrigger on Opportunity (after insert) {
+    List<Quote> quotes = new List<Quote>();
+
+    for (Opportunity opp : Trigger.new) {
+        quotes.add(new Quote(
+            Name = opp.Name + ' Default Quote',
+            OpportunityId = opp.Id,
+            Status = 'Draft'
+        ));
+    }
+
+    if (!quotes.isEmpty()) {
+        insert quotes;
+    }
+}
+
+10. Create Contact_Role__c record after Opportunity insertion
+trigger OpportunityTrigger on Opportunity (after insert) {
+    List<Contact_Role__c> roles = new List<Contact_Role__c>();
+
+    for (Opportunity opp : Trigger.new) {
+        roles.add(new Contact_Role__c(
+            Opportunity__c = opp.Id,
+            Role__c = 'Decision Maker'
+        ));
+    }
+
+    if (!roles.isEmpty()) {
+        insert roles;
+    }
+}
